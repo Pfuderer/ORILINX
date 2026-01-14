@@ -129,6 +129,7 @@ def main(argv=None):
     p.add_argument("--write_csv", action="store_true", help="Write per-chromosome CSV files containing scores for each window.")
     p.add_argument("--write_bedgraph", action="store_true", help="Write per-chromosome bedGraph files (center coordinate and score).")
     p.add_argument("--score", choices=["logit","prob"], default="prob", help="Output score type: 'logit' (raw model logits) or 'prob' (sigmoid probabilities).")
+    p.add_argument("--fetch_dnabert", dest="fetch_dnabert", action="store_true", help="If DNABERT is missing, attempt to download 'zhihan1996/DNABERT-2-117M' from Hugging Face into 'models/' (requires 'huggingface-hub').")
     p.add_argument("--disable_flash", action="store_true", help="Force non-flash (padded) attention mode; safer for long sequences.")
     p.add_argument("--no-progress", dest="no_progress", action="store_true", help="Disable progress bars (useful for logging or non-interactive runs).")
     p.add_argument("--verbose", action="store_true", help="Enable verbose output (prints DNABERT path, model checkpoint, device and runtime settings).")
@@ -140,6 +141,26 @@ def main(argv=None):
     # Resolve DNABERT local path (env var or models/ discovery). CLI override removed; discovery is mandatory.
     from .model_architecture_optim import _find_dnabert_local_path
     resolved_dnabert = _find_dnabert_local_path()
+
+    # If not found and the user explicitly asked to fetch, attempt to download from HF
+    if resolved_dnabert is None and (getattr(args, "fetch_dnabert", False) or os.environ.get("ORILINX_DNABERT_AUTO_FETCH")):
+        try:
+            from huggingface_hub import snapshot_download
+        except Exception:
+            raise RuntimeError(
+                "DNABERT not found locally and 'huggingface-hub' is not installed. Install it (pip install huggingface-hub) or set ORILINX_DNABERT_PATH."
+            )
+        dest_dir = os.path.join(os.getcwd(), "models", "DNABERT-2-117M")
+        if not os.path.isdir(dest_dir):
+            print("[orilinx] DNABERT not found locally; attempting to download 'zhihan1996/DNABERT-2-117M' into models/ ...")
+            try:
+                # snapshot_download will populate a local cache; request the target cache dir so files land under models/
+                snapshot_download(repo_id="zhihan1996/DNABERT-2-117M", cache_dir=dest_dir)
+            except Exception as e:
+                raise RuntimeError(f"Automatic DNABERT download failed: {e}")
+        # Re-run discovery now that we've attempted to fetch
+        resolved_dnabert = _find_dnabert_local_path()
+
     if resolved_dnabert is None:
         raise RuntimeError(
             "DNABERT not found: set ORILINX_DNABERT_PATH to a valid local DNABERT folder or place DNABERT under a 'models/' directory (searched upward from CWD)."

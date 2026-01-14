@@ -15,7 +15,7 @@ def _find_dnabert_local_path():
 
     Priority order:
     - ORILINX_DNABERT_PATH env var (if set)
-    - Any directory under a `models/` folder (searched upward from CWD)
+    - Any directory under a `models/` folder (searched upward from CWD and from the package location)
       whose name contains 'dnabert' (case-insensitive), or that contains a
       recognizable pretrained model marker file like 'config.json'.
     - None if nothing is found.
@@ -25,8 +25,18 @@ def _find_dnabert_local_path():
     if env:
         return env
 
+    # Build an ordered, deduplicated list of candidate roots to search for a `models/` directory.
+    # This includes the current working directory (and its parents) as well as the package
+    # directory (and its parents) so the code locates models/ even when the user runs the
+    # CLI from elsewhere (e.g., $HOME or an HPC working directory).
     cwd = Path.cwd()
-    for ancestor in [cwd] + list(cwd.parents):
+    pkg_dir = Path(__file__).resolve().parent
+    candidates = []
+    for p in [cwd] + list(cwd.parents) + [pkg_dir] + list(pkg_dir.parents):
+        if p not in candidates:
+            candidates.append(p)
+
+    for ancestor in candidates:
         models_dir = ancestor / "models"
         if not models_dir.exists() or not models_dir.is_dir():
             continue
