@@ -32,6 +32,31 @@ class _SlidingWindows:
         finally:
             fa.close()
 
+    def __len__(self):
+        """Estimated number of windows (ignores N-filtering).
+
+        This allows DataLoader to use the default sampler with multiple
+        workers (which calls range(len(dataset))). The estimate is computed
+        from reference lengths, window and stride and therefore is stable
+        and inexpensive.
+        """
+        import pysam
+        fa = pysam.FastaFile(self.fasta_path)
+        try:
+            total = 0
+            for chrom in self.chroms:
+                if chrom not in fa.references:
+                    continue
+                clen = fa.get_reference_length(chrom)
+                last = clen - self.window
+                if last < 0:
+                    continue
+                num_windows = (last // self.stride) + 1
+                total += num_windows
+            return total
+        finally:
+            fa.close()
+
 
 def _resolve_chroms_from_fasta(fasta_path: str, arg: str):
     import pysam
