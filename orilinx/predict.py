@@ -79,7 +79,7 @@ def _find_default_model_path():
 
     Priority order:
     1. If `ORILINX_MODEL` env var is set, use it (must point to an existing .pt).
-    2. Otherwise, search upward from CWD for a `models/` directory and return the newest .pt file.
+    2. Otherwise, search upward from CWD and from the package tree for a `models/` directory and return the newest .pt file.
 
     Returns the absolute path to the .pt or None if no candidate found.
     """
@@ -90,19 +90,38 @@ def _find_default_model_path():
             return os.path.abspath(env_path)
         raise RuntimeError(f"ORILINX_MODEL is set to '{env_path}', but that file does not exist or is not a .pt")
 
-    # 2) Search for models/ upward from CWD
+    # 2) Build candidate roots: cwd parents + package dir parents (deduplicated)
     cur = os.getcwd()
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = []
+    for p in [cur] + [os.path.dirname(cur)]:
+        pass
+    # Walk up from cwd
+    node = cur
     while True:
-        models_dir = os.path.join(cur, "models")
+        if node not in candidates:
+            candidates.append(node)
+        parent = os.path.dirname(node)
+        if parent == node:
+            break
+        node = parent
+    # Walk up from package dir
+    node = pkg_dir
+    while True:
+        if node not in candidates:
+            candidates.append(node)
+        parent = os.path.dirname(node)
+        if parent == node:
+            break
+        node = parent
+
+    for root in candidates:
+        models_dir = os.path.join(root, "models")
         if os.path.isdir(models_dir):
             pts = [os.path.join(models_dir, f) for f in os.listdir(models_dir) if f.endswith(".pt")]
             if pts:
                 pts.sort(key=lambda p: os.path.getmtime(p), reverse=True)
                 return os.path.abspath(pts[0])
-        parent = os.path.dirname(cur)
-        if parent == cur:
-            break
-        cur = parent
     return None
 
 
@@ -179,8 +198,35 @@ def main(argv=None):
             "No model checkpoint found in any 'models/' directory. Please place your .pt checkpoint in a 'models/' folder (searched upward from CWD)."
         )
     print(f"Using model checkpoint: {model_path}")
-    ckpt = torch.load(model_path, map_location="cpu")  # keep on CPU for safety
-    model.load_state_dict(ckpt)
+    # Attempt to load checkpoint and be helpful on common failure modes (git-lfs pointers, wrong format)
+    try:
+        ckpt = torch.load(model_path, map_location="cpu")  # keep on CPU for safety
+    except Exception as e:
+        # Detect a likely git-lfs pointer (text file starting with the LFS pointer header)
+        try:
+            with open(model_path, "r", errors="ignore") as _fh:
+                head = _fh.read(1024)
+            if "git-lfs" in head or head.startswith("version https://git-lfs.github.com/spec/v1"):
+                raise RuntimeError(
+                    f"Checkpoint at {model_path} appears to be a Git LFS pointer. Run 'git lfs install && git lfs pull' in the submodule or download the real .pt file (or use huggingface-hub)."
+                )
+        except Exception:
+            pass
+        raise RuntimeError(f"Failed to load checkpoint at {model_path}: {e}")
+
+    # Support both raw state_dict and checkpoints with wrapping dicts
+    if isinstance(ckpt, dict) and ("state_dict" in ckpt or "model_state_dict" in ckpt):
+        sd = ckpt.get("state_dict", ckpt.get("model_state_dict"))
+    else:
+        sd = ckpt
+
+    try:
+        model.load_state_dict(sd)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to apply checkpoint from {model_path} to the model: {e}.\n"
+            "Make sure the checkpoint was saved from the same model class (DnaBertOriginModel) and is a PyTorch state_dict or a checkpoint dict with 'state_dict'/'model_state_dict'."
+        )
 
     if getattr(args, "verbose", False):
         print("[orilinx] Resolved DNABERT path:", resolved_dnabert)
