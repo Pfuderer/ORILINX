@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orilinx"
+version = "1.0.0"
+description = "Genome-wide origin scoring with DNABERT-2"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+  "torch",
+  "transformers",
+  "pysam",
+  "pandas",
+  "numpy",
+]
+
+[project.scripts]
+orilinx = "orilinx.cli:main"
+# Backwards compatibility
+orilinx-predict = "orilinx.cli:main"
+
+[project.optional-dependencies]
+all = [
+  "torch",
+  "transformers",
+  "pysam",
+  "pandas",
+  "numpy",
+  "peft",
+]
+
+[tool.setuptools.packages.find]
+include = ["orilinx*"]

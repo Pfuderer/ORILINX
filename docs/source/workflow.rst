@@ -14,7 +14,7 @@ Pull the Singularity image:
 
 .. code-block:: console
 
-   singularity pull ORILINX.sif library://mboemo/orilinx/orilinx:1.0.1
+   singularity pull ORILINX.sif library://mboemo/orilinx/orilinx:1.0.0
 
 
 Running on a Single Contig
