@@ -4,7 +4,10 @@ import argparse
 from .model_architecture_optim import DnaBertOriginModel  # relative import inside package
 
 # --- sliding windows dataset (iterable; no heavy imports at module import time) ---
-class _SlidingWindows:
+import torch
+from torch.utils.data import IterableDataset
+
+class _SlidingWindows(IterableDataset):
     def __init__(self, fasta_path, chroms, window, stride, max_N_frac):
         self.fasta_path = fasta_path
         self.chroms = chroms
@@ -13,10 +16,21 @@ class _SlidingWindows:
         self.max_N_frac = float(max_N_frac)
 
     def __iter__(self):
-        # Import lazily to avoid heavy deps on module import
+        # Worker-aware iterable: distribute candidate windows across workers by index.
         import pysam
+        from torch.utils.data import get_worker_info
+
+        worker_info = get_worker_info()
+        if worker_info is None:
+            worker_id = 0
+            num_workers = 1
+        else:
+            worker_id = worker_info.id
+            num_workers = worker_info.num_workers
+
         fa = pysam.FastaFile(self.fasta_path)
         try:
+            idx = 0
             for chrom in self.chroms:
                 if chrom not in fa.references:
                     continue
@@ -25,8 +39,13 @@ class _SlidingWindows:
                 if last < 0:
                     continue
                 for start in range(0, last + 1, self.stride):
+                    # Round-robin assignment by candidate index ensures workers share load
+                    if (idx % num_workers) != worker_id:
+                        idx += 1
+                        continue
                     end = start + self.window
                     seq = fa.fetch(chrom, start, end).upper()
+                    idx += 1
                     if seq.count("N") / self.window <= self.max_N_frac:
                         yield {"chrom": chrom, "start": start, "end": end, "seq": seq}
         finally:
