@@ -361,8 +361,35 @@ def main(argv=None):
                     if "token_type_ids" in batch:
                         inputs["token_type_ids"] = batch["token_type_ids"].to(device, non_blocking=True)
 
-                    # Keep eval-style call/return
-                    logits, _ = model(**inputs)
+                    # Keep eval-style call/return. Be resilient to Triton compilation errors
+                    # used by flash-attention kernels: if a CompilationError occurs, disable
+                    # flash/unpadded attention and retry once (this is slower but more robust).
+                    try:
+                        logits, _ = model(**inputs)
+                    except Exception as e:
+                        # Detect Triton compilation error when triton is present, or match by name
+                        is_triton_compile_error = False
+                        try:
+                            from triton.compiler.errors import CompilationError
+                            if isinstance(e, CompilationError):
+                                is_triton_compile_error = True
+                        except Exception:
+                            # Fallback heuristics
+                            if "triton" in type(e).__module__ or "CompilationError" in repr(e):
+                                is_triton_compile_error = True
+
+                        if is_triton_compile_error:
+                            print("[orilinx] Triton compilation error detected during a flash kernel; disabling flash/unpad attention and retrying (this will be slower).")
+                            # Disable fast/unpadded flags on model and retry once
+                            _disable_unpad_and_flash_everywhere(model)
+                            model.to(device)
+                            try:
+                                logits, _ = model(**inputs)
+                            except Exception as e2:
+                                raise RuntimeError(f"Retry after disabling flash-attention failed: {e2}") from e2
+                        else:
+                            raise
+
                     probs = torch.sigmoid(logits)
 
                     starts = batch["start"].numpy()
