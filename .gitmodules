@@ -1,3 +1,3 @@
 [submodule "models/DNABERT-2-117M"]
 	path = models/DNABERT-2-117M
-	url = https://huggingface.co/zhihan1996/DNABERT-2-117M
+	url = https://huggingface.co/MBoemo/DNABERT-2-117M-Flash
