@@ -86,7 +86,7 @@ class DnaBertOriginModel(nn.Module):
         )
         for attr in ("use_flash_attn", "flash_attn", "use_flash_attn_mha"):
             if hasattr(cfg, attr):
-                setattr(cfg, attr, True)
+                setattr(cfg, attr, False)
 
         # 2. Load the base DNABERT-2 model
         self.dnabert = AutoModel.from_pretrained(

@@ -108,6 +108,14 @@ def _disable_unpad_and_flash_everywhere(model):
                     setattr(cfg, nm, False)
                 except Exception:
                     pass
+        # Key fix: set attention_probs_dropout_prob to non-zero to force PyTorch path
+        # BertUnpadSelfAttention checks: if self.p_dropout or flash_attn_qkvpacked_func is None
+        # We set p_dropout > 0 to always take the PyTorch path
+        if hasattr(cfg, "attention_probs_dropout_prob"):
+            try:
+                cfg.attention_probs_dropout_prob = 0.01  # Small nonzero value
+            except Exception:
+                pass
     # Try on all submodules (DNABERT variants differ in attribute names/placement)
     for m in model.modules():
         for nm in ("use_flash_attn", "flash_attn", "use_memory_efficient_attention", "unpad"):
@@ -116,6 +124,18 @@ def _disable_unpad_and_flash_everywhere(model):
                     setattr(m, nm, False)
                 except Exception:
                     pass
+        # Key fix: also directly set p_dropout on BertUnpadSelfAttention modules
+        if hasattr(m, "p_dropout"):
+            try:
+                m.p_dropout = 0.01
+            except Exception:
+                pass
+        # Set attention_probs_dropout_prob on config objects in submodules too
+        if hasattr(m, "config") and hasattr(m.config, "attention_probs_dropout_prob"):
+            try:
+                m.config.attention_probs_dropout_prob = 0.01
+            except Exception:
+                pass
 
 
 def _find_default_model_path():
