@@ -1,5 +1,5 @@
-ORILINX
-====================================
+.. image:: _static/Logo_Text_v1.png
+   :width: 800
 
 .. toctree::
    :maxdepth: 1
