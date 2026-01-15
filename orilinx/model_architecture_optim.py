@@ -1,11 +1,20 @@
 import os
 import warnings
+import logging
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 from transformers import AutoConfig, AutoModel
 from peft import LoraConfig, get_peft_model, TaskType
+
+# Suppress the alibi size increase warning from DNABERT when using long sequences
+warnings.filterwarnings("ignore", message=".*Increasing alibi size.*")
+
+# Suppress transformers logging warnings about uninitialized weights and sharding
+logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
+logging.getLogger("transformers.fsdp").setLevel(logging.ERROR)
+logging.getLogger("torch.distributed.fsdp").setLevel(logging.ERROR)
 
 # Prefer locating DNABERT under a `models/` directory (searched upward from CWD)
 # or via the ORILINX_DNABERT_PATH env var.
@@ -89,12 +98,24 @@ class DnaBertOriginModel(nn.Module):
                 setattr(cfg, attr, False)
 
         # 2. Load the base DNABERT-2 model
-        self.dnabert = AutoModel.from_pretrained(
-            model_name,
-            config=cfg,
-            trust_remote_code=True,
-            local_files_only=True,
-        )
+        # Temporarily suppress INFO/WARNING level logs to avoid sharding messages
+        # Store original levels and restore after loading
+        transformers_logger = logging.getLogger("transformers")
+        torch_logger = logging.getLogger("torch")
+        original_transformers_level = transformers_logger.level
+        original_torch_level = torch_logger.level
+        transformers_logger.setLevel(logging.ERROR)
+        torch_logger.setLevel(logging.ERROR)
+        try:
+            self.dnabert = AutoModel.from_pretrained(
+                model_name,
+                config=cfg,
+                trust_remote_code=True,
+                local_files_only=True,
+            )
+        finally:
+            transformers_logger.setLevel(original_transformers_level)
+            torch_logger.setLevel(original_torch_level)
 
         # 3. Define the LoRA configuration ONCE
         peft_config = LoraConfig(
@@ -116,9 +137,8 @@ class DnaBertOriginModel(nn.Module):
         self.dnabert = get_peft_model(self.dnabert, peft_config)
 
         # 5. (Optional but recommended) Print trainable parameters to verify setup
-        print("\nTrainable parameters after applying LoRA:")
-        self.dnabert.print_trainable_parameters()
-        print("-" * 40)
+        # Silenced: trainable parameter logging
+        # self.dnabert.print_trainable_parameters()
 
         # 6. Define the classification head
         self.hidden_size = self.dnabert.config.hidden_size

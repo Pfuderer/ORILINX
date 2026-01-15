@@ -208,7 +208,6 @@ def main(argv=None):
     p.add_argument("--num_workers", type=int, default=8, help="Number of worker processes used by DataLoader for data loading (0 runs in main process).")
     p.add_argument("--sequence_names", type=str, default="all", help='Comma-separated list of sequence names to process (e.g., "chr1,chr2"); use "all" for primary sequences: chr1-22,chrX[,chrY].')
     p.add_argument("--score", choices=["logit","prob"], default="prob", help="Output score type: 'logit' (raw model logits) or 'prob' (sigmoid probability).")
-    p.add_argument("--fetch_dnabert", dest="fetch_dnabert", action="store_true", help="If DNABERT is missing, attempt to download 'zhihan1996/DNABERT-2-117M' from Hugging Face into 'models/' (requires 'huggingface-hub').")
     p.add_argument("--disable_flash", action="store_true", help="Force non-flash (padded) attention mode; safer for long sequences.")
     p.add_argument("--no-progress", dest="no_progress", action="store_true", help="Disable progress bars (useful for logging or non-interactive runs).")
     p.add_argument("--verbose", action="store_true", help="Enable verbose output (prints DNABERT path, model checkpoint, device and runtime settings).")
@@ -220,25 +219,6 @@ def main(argv=None):
     # Resolve DNABERT local path (env var or models/ discovery). CLI override removed; discovery is mandatory.
     from .model_architecture_optim import _find_dnabert_local_path
     resolved_dnabert = _find_dnabert_local_path()
-
-    # If not found and the user explicitly asked to fetch, attempt to download from HF
-    if resolved_dnabert is None and (getattr(args, "fetch_dnabert", False) or os.environ.get("ORILINX_DNABERT_AUTO_FETCH")):
-        try:
-            from huggingface_hub import snapshot_download
-        except Exception:
-            raise RuntimeError(
-                "DNABERT not found locally and 'huggingface-hub' is not installed. Install it (pip install huggingface-hub) or set ORILINX_DNABERT_PATH."
-            )
-        dest_dir = os.path.join(os.getcwd(), "models", "DNABERT-2-117M")
-        if not os.path.isdir(dest_dir):
-            print("[orilinx] DNABERT not found locally; attempting to download 'zhihan1996/DNABERT-2-117M' into models/ ...")
-            try:
-                # snapshot_download will populate a local cache; request the target cache dir so files land under models/
-                snapshot_download(repo_id="zhihan1996/DNABERT-2-117M", cache_dir=dest_dir)
-            except Exception as e:
-                raise RuntimeError(f"Automatic DNABERT download failed: {e}")
-        # Re-run discovery now that we've attempted to fetch
-        resolved_dnabert = _find_dnabert_local_path()
 
     if resolved_dnabert is None:
         raise RuntimeError(
@@ -257,7 +237,7 @@ def main(argv=None):
         raise RuntimeError(
             "No model checkpoint found in any 'models/' directory. Please place your .pt checkpoint in a 'models/' folder (searched upward from CWD)."
         )
-    print(f"Using model checkpoint: {model_path}")
+
     # Attempt to load checkpoint and be helpful on common failure modes (git-lfs pointers, wrong format)
     try:
         ckpt = torch.load(model_path, map_location="cpu")  # keep on CPU for safety
@@ -303,7 +283,7 @@ def main(argv=None):
 
     chroms = _resolve_chroms_from_fasta(args.fasta_path, args.sequence_names)
 
-    # Progress bars (per-chromosome and overall). Use tqdm when available, else fall back to no-op.
+    # Progress bars (per-sequence and overall). Use tqdm when available, else fall back to no-op.
     show_progress = not getattr(args, "no_progress", False)
     try:
         _tqdm = None
@@ -318,7 +298,7 @@ def main(argv=None):
         _tqdm = _identity
         have_tqdm = False
 
-    chrom_iter = _tqdm(chroms, desc="Chromosomes", total=len(chroms)) if have_tqdm else chroms
+    chrom_iter = _tqdm(chroms, desc="Sequences", total=len(chroms)) if have_tqdm else chroms
 
     def _collate(batch):
         seqs = [b["seq"] for b in batch]
@@ -354,7 +334,7 @@ def main(argv=None):
             continue
         num_windows = (last // args.stride) + 1
 
-        # Per-chromosome progress bar
+        # Per-sequence progress bar
         pbar = _tqdm(total=num_windows, desc=f"{chrom}", unit="win") if have_tqdm else None
 
         ds = _SlidingWindows(args.fasta_path, [chrom], 2000, args.stride, args.max_N_frac)
@@ -418,7 +398,7 @@ def main(argv=None):
                         rows.append((chrom, int(starts[i]), int(ends[i]), int(centers[i]),
                                      float(logits_np[i]), float(probs_np[i])))
 
-                    # Update per-chromosome progress
+                    # Update per-sequence progress
                     if pbar is not None:
                         try:
                             n = len(batch["chrom"]) if "chrom" in batch else len(starts)
