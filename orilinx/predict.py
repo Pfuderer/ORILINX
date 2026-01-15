@@ -82,7 +82,7 @@ def _resolve_chroms_from_fasta(fasta_path: str, arg: str):
     fa = pysam.FastaFile(fasta_path)
     refs = list(fa.references)
     fa.close()
-    if arg and arg.lower() != "auto":
+    if arg and arg.lower() != "all":
         return [c.strip() for c in arg.split(",") if c.strip() in refs]
     primary = [f"chr{i}" for i in range(1, 23)] + ["chrX"]
     if "chrY" in refs:
@@ -201,17 +201,13 @@ def main(argv=None):
 
     p = argparse.ArgumentParser(description="Genome-wide origin scores with ORILINX.")
     p.add_argument("--fasta_path", required=True, help="Path to the reference FASTA file (.fa); an index (.fai) must be present.")
-    p.add_argument("--output_dir", required=True, help="Directory where per-chromosome outputs (CSV/bedGraph) will be written.")
-    p.add_argument("--sequence_length", type=int, default=2000, help="Tokenization length (must match the DNABERT model/training sequence length).")
-    p.add_argument("--window", type=int, default=2000, help="Sliding window size in base pairs (bp).")
+    p.add_argument("--output_dir", required=True, help="Directory where per-sequence output bedgraphs will be written.")
     p.add_argument("--stride", type=int, default=1000, help="Stride in base pairs (bp) between consecutive windows.")
     p.add_argument("--max_N_frac", type=float, default=0.05, help="Maximum fraction of 'N' bases allowed in a window; windows exceeding this are skipped.")
     p.add_argument("--batch_size", type=int, default=64, help="Number of windows per batch; increase for throughput if memory allows.")
     p.add_argument("--num_workers", type=int, default=8, help="Number of worker processes used by DataLoader for data loading (0 runs in main process).")
-    p.add_argument("--chroms", type=str, default="auto", help='Comma-separated list of chromosomes to process (e.g., "chr1,chr2"); use "auto" for primary chromosomes: chr1-22,chrX[,chrY].')
-    p.add_argument("--write_csv", action="store_true", help="Write per-chromosome CSV files containing scores for each window.")
-    p.add_argument("--write_bedgraph", action="store_true", help="Write per-chromosome bedGraph files (center coordinate and score).")
-    p.add_argument("--score", choices=["logit","prob"], default="prob", help="Output score type: 'logit' (raw model logits) or 'prob' (sigmoid probabilities).")
+    p.add_argument("--sequence_names", type=str, default="all", help='Comma-separated list of sequence names to process (e.g., "chr1,chr2"); use "all" for primary sequences: chr1-22,chrX[,chrY].')
+    p.add_argument("--score", choices=["logit","prob"], default="prob", help="Output score type: 'logit' (raw model logits) or 'prob' (sigmoid probability).")
     p.add_argument("--fetch_dnabert", dest="fetch_dnabert", action="store_true", help="If DNABERT is missing, attempt to download 'zhihan1996/DNABERT-2-117M' from Hugging Face into 'models/' (requires 'huggingface-hub').")
     p.add_argument("--disable_flash", action="store_true", help="Force non-flash (padded) attention mode; safer for long sequences.")
     p.add_argument("--no-progress", dest="no_progress", action="store_true", help="Disable progress bars (useful for logging or non-interactive runs).")
@@ -296,7 +292,7 @@ def main(argv=None):
         print("[orilinx] Resolved DNABERT path:", resolved_dnabert)
         print("[orilinx] Model checkpoint:", model_path)
         print("[orilinx] Device:", device)
-        print(f"[orilinx] Runtime settings: batch_size={args.batch_size}, num_workers={args.num_workers}, sequence_length={args.sequence_length}, window={args.window}, stride={args.stride}")
+        print(f"[orilinx] Runtime settings: batch_size={args.batch_size}, num_workers={args.num_workers}, window=2000, stride={args.stride}")
         if getattr(args, "no_progress", False):
             print("[orilinx] Progress bars: disabled")
 
@@ -305,7 +301,7 @@ def main(argv=None):
     model.to(device)
     model.eval()
 
-    chroms = _resolve_chroms_from_fasta(args.fasta_path, args.chroms)
+    chroms = _resolve_chroms_from_fasta(args.fasta_path, args.sequence_names)
 
     # Progress bars (per-chromosome and overall). Use tqdm when available, else fall back to no-op.
     show_progress = not getattr(args, "no_progress", False)
@@ -330,7 +326,7 @@ def main(argv=None):
             seqs,
             padding="max_length",
             truncation=True,
-            max_length=args.sequence_length,
+            max_length=2000,
             return_tensors="pt",
         )
         # match eval datatypes/shapes; keep masks as long tensors of 0/1
@@ -353,7 +349,7 @@ def main(argv=None):
             continue
         clen = fa.get_reference_length(chrom)
         fa.close()
-        last = clen - args.window
+        last = clen - 2000
         if last < 0:
             continue
         num_windows = (last // args.stride) + 1
@@ -361,7 +357,7 @@ def main(argv=None):
         # Per-chromosome progress bar
         pbar = _tqdm(total=num_windows, desc=f"{chrom}", unit="win") if have_tqdm else None
 
-        ds = _SlidingWindows(args.fasta_path, [chrom], args.window, args.stride, args.max_N_frac)
+        ds = _SlidingWindows(args.fasta_path, [chrom], 2000, args.stride, args.max_N_frac)
         dl = DataLoader(
             ds,
             batch_size=args.batch_size,
@@ -440,11 +436,7 @@ def main(argv=None):
             continue
 
         df = pd.DataFrame(rows, columns=["chrom","start","end","center","logit","prob"])
-
-        if args.write_csv:
-            df.to_csv(os.path.join(args.output_dir, f"{chrom}.csv"), index=False)
-        if args.write_bedgraph:
-            _write_bedgraph_center(df, os.path.join(args.output_dir, f"{chrom}.bedGraph"), value=args.score)
+        _write_bedgraph_center(df, os.path.join(args.output_dir, f"{chrom}.bedGraph"), value=args.score)
 
     print("Done.")
 
