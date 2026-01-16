@@ -5,66 +5,86 @@
 
 ORILINX is a large language model built on DNABERT-2 to detect the location of replication origins in mammalian genomes. It is under active development by the [Boemo Group](https://www.boemogroup.org/) based in the [Department of Pathology, University of Cambridge](https://www.path.cam.ac.uk/).
 
-## Singularity Image
-The recommended way to run ORILINX is via our supported Singularity image: https://cloud.sylabs.io/library/mboemo/orilinx/orilinx
-You can obtain the latest image by running:
-```shell
-singularity pull ORILINX.sif library://mboemo/orilinx/orilinx:1.0.0
-```
+### Building from Source
 
-## Building from Source
-
-You can install the ORILINX package in editable mode for development:
+For development or to use the latest unreleased version:
 
 ```bash
 git clone --recursive https://github.com/Pfuderer/ORILINX.git
 cd ORILINX
-pip install -e ."[all]"
+pip install -e .
 ```
 
-This installs a console script named `orilinx` that runs prediction.
+This installs ORILINX in editable mode and creates a console script named `orilinx` that runs prediction.
 
-Note: Installing `torch` should follow your platform/GPU choice. For example for CUDA 12 you may use the recommended install from the PyTorch website or your package manager.
+**Note on PyTorch:** Install `torch` according to your platform and GPU:
+- For CUDA 12: Follow the recommended install from the [PyTorch website](https://pytorch.org/get-started/locally/)
+- For other GPUs or CPU-only: Adjust the PyTorch installation command accordingly
 
-Also ensure `peft` is installed (used by the model code). You can install it directly with `pip install peft` or via the project extras: `pip install -e ."[all]"`.
+All other dependencies (including `peft`) are installed automatically via `pip install -e .`
 
-## CLI usage
+### Usage
 
-After installation, the top-level command `orilinx` runs prediction. An example of basic usage is:
+After installation, use the `orilinx` command to predict replication origins:
 
 ```bash
-orilinx --fasta_path /path/to/genome.fa --output_dir /path/to/out --write_csv --score prob
+# Basic usage: analyse all chromosomes
+orilinx --fasta_path genome.fa --output_dir results
+
+# Analyse specific chromosomes only
+orilinx --fasta_path genome.fa --output_dir results --sequence_names chr1,chr2,chr3
+
+# Analyse a specific region (must be ≥2000 bp)
+orilinx --fasta_path genome.fa --output_dir results --sequence_names chr8:1000000-5000000
+
+# Also generate CSV output alongside bedGraph
+orilinx --fasta_path genome.fa --output_dir results --output_csv
 ```
 
-Key options:
+### Required Arguments
 
-- `--fasta_path` (required): Path to the reference FASTA file (.fa). An index (.fai) must be present.
-- `--output_dir` (required): Directory where per-chromosome outputs will be written.
-- `--sequence_length`: Tokenization length (must match DNABERT training length). Default: 2000.
-- `--window` / `--stride`: Sliding-window size and stride in bp. Defaults: 2000 / 1000.
-- `--max_N_frac`: Skip windows with a higher fraction of `N` bases. Default 0.05.
-- `--batch_size`: Number of windows per batch (tune for throughput / memory).
-- `--num_workers`: Number of DataLoader worker processes (0 runs in main process).
-- `--write_csv` / `--write_bedgraph`: Output formats; CSV contains per-window rows, bedGraph writes center + score.
-- `--score`: `logit` or `prob` (sigmoid). Default: `prob`.
-- `--no-progress`: Disable progress bars (useful in non-interactive environments).
-- `--verbose`: Print resolved DNABERT path, chosen checkpoint, device and runtime settings for debugging.
+- `--fasta_path PATH` (required): Path to the reference FASTA file. An index file (`.fai`) must be present in the same directory. Create it with: `samtools faidx genome.fa`
+- `--output_dir PATH` (required): Directory where results will be saved.
 
-## Examples
+### Additional Options
+
+- `--sequence_names SEQUENCES` (default: all): Which chromosomes or regions to analyse. Use comma-separated names (e.g., `chr1,chr2`) or specify regions (e.g., `chr1:2000-6000`).
+- `--output_csv`: Generate CSV files in addition to bedGraph files.
+- `--score {logit,prob}` (default: prob): Output score format (probability 0-1 or raw logit).
+- `--stride INT` (default: 1000): Sliding window stride in bp. Smaller values = more detail but slower.
+- `--batch_size INT` (default: 64): Regions per batch. Increase for faster analysis on powerful GPUs; decrease if out of memory.
+- `--num_workers INT` (default: 8): Background processes for data loading. Set to 0 if experiencing issues.
+- `--max_N_frac FLOAT` (default: 0.05): Skip regions with >5% unknown bases ("N"). Adjust tolerance as needed.
+- `--disable_flash`: Use standard attention instead of flash attention (slower but compatible with more GPUs).
+- `--verbose`: Show detailed runtime information (model path, device, settings).
+- `--no-progress`: Hide progress bars (useful for scripts/logging).
+
+For a complete list of options, run: `orilinx --help`
+
+### Examples
 
 ```bash
-# writes one CSV per chromosome
-orilinx --fasta_path hg38.fa --output_dir ./out --write_csv --score prob
+# Analyse human chromosome 8 with CSV output
+orilinx --fasta_path hg38.fa --output_dir results --sequence_names chr8 --output_csv
+
+# Analyse multiple chromosomes
+orilinx --fasta_path hg38.fa --output_dir results --sequence_names chr1,chr2,chr3,chrX
+
+# Analyse specific genomic region (1 Mb region on chr8)
+orilinx --fasta_path hg38.fa --output_dir results --sequence_names chr8:10000000-11000000
+
+# Fast mode with larger batches (needs GPU with ≥12GB VRAM)
+orilinx --fasta_path hg38.fa --output_dir results --batch_size 256
 
 # Verbose output and no progress bars (for CI/logging)
-orilinx --fasta_path hg38.fa --output_dir ./out --write_csv --score prob --verbose --no-progress
+orilinx --fasta_path hg38.fa --output_dir results --verbose --no-progress
 ```
 
-## Documentation
+### Documentation
 Please see the [documentation](https://orilinx.readthedocs.io) for detailed usage instructions, visualisation, and an example workflow.
 
-## Citation
+### Citation
 If you use ORILINX for your research, please cite our publication:
 
-## Questions and Bugs
+### Questions and Bugs
 Should any bugs arise or if you have basic usage questions, please raise a [GitHub issue](https://github.com/Pfuderer/ORILINX/issues). For more detailed discussions or collaborations, please Email Michael Boemo at mb915@cam.ac.uk.

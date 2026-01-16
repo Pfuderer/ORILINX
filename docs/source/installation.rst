@@ -11,6 +11,109 @@ ORILINX requires:
 - A reference genome in FASTA format (e.g., hg38, hg19)
 - (Optional, but highly recommended) A GPU for faster performance
 
+GPU Setup (Optional, but highly recommended)
+-------------------------------------
+
+ORILINX runs significantly faster on GPUs. If you have an NVIDIA GPU and want to use it, follow these steps.
+
+**Check if You Have an NVIDIA GPU**
+
+Open a terminal and run::
+
+    nvidia-smi
+
+If this command returns GPU information, you have an NVIDIA GPU and can proceed. If it says "command not found", either you don't have an NVIDIA GPU, or the drivers aren't installed (see below).
+
+**Install NVIDIA Drivers**
+
+On Ubuntu/Debian::
+
+    sudo apt update
+    sudo apt install nvidia-driver-550
+
+On Fedora/RHEL::
+
+    sudo dnf install nvidia-driver
+
+On macOS or other systems, download from `NVIDIA's driver page <https://www.nvidia.com/Download/driverDetails.aspx>`_.
+
+After installation, restart your computer and verify with::
+
+    nvidia-smi
+
+**Install CUDA Toolkit**
+
+CUDA is the computing platform that enables GPU acceleration. You need to match your GPU's compute capability and your PyTorch version.
+
+1. Check your GPU compute capability at `NVIDIA's CUDA Compute Capability table <https://developer.nvidia.com/cuda-compute-capability-chart>`_.
+
+2. Download CUDA from `NVIDIA's CUDA Toolkit website <https://developer.nvidia.com/cuda-toolkit>`_. For most modern GPUs and recent PyTorch, CUDA 12.1 or 12.4 is recommended.
+
+3. Follow the installation instructions for your platform. For Ubuntu, a typical command is::
+
+    wget https://developer.download.nvidia.com/compute/cuda/12.4.1/local_installers/cuda_12.4.1_550.54.15_linux.run
+    sudo sh cuda_12.4.1_550.54.15_linux.run
+
+4. After installation, add CUDA to your PATH by adding this to your ``~/.bashrc`` or ``~/.zshrc``::
+
+    export PATH=/usr/local/cuda/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+5. Reload your shell::
+
+    source ~/.bashrc
+
+6. Verify CUDA installation::
+
+    nvcc --version
+
+**Install cuDNN (CUDA Deep Neural Network Library)**
+
+cuDNN is a library optimised for deep learning operations.
+
+1. Download cuDNN from `NVIDIA's cuDNN page <https://developer.nvidia.com/cudnn>`_ (requires free registration).
+
+2. Extract and copy to your CUDA directory::
+
+    tar -xzf cudnn-linux-*.tar.xz
+    sudo cp cudnn-*/include/cudnn.h /usr/local/cuda/include/
+    sudo cp cudnn-*/lib/libcudnn* /usr/local/cuda/lib64/
+    sudo chmod a+r /usr/local/cuda/include/cudnn.h /usr/local/cuda/lib64/libcudnn*
+
+**Install PyTorch with CUDA Support**
+
+After CUDA is installed, install PyTorch with GPU support. Visit `pytorch.org <https://pytorch.org/get-started/locally/>`_ and select:
+
+- **PyTorch Build**: Stable
+- **Your OS**: Linux (or your OS)
+- **Package**: pip
+- **Language**: Python
+- **Compute Platform**: CUDA 12.1 (or 12.4, matching your CUDA installation)
+
+This will give you a command like::
+
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+Run this command to install PyTorch with CUDA support.
+
+**Verify GPU is Working**
+
+After PyTorch installation, verify GPU support::
+
+    python -c "import torch; print(f'GPU available: {torch.cuda.is_available()}'); print(f'GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"None\"}')"
+
+If this prints ``GPU available: True`` and shows your GPU name, you're ready to use ORILINX with GPU acceleration.
+
+**Troubleshooting GPU Setup**
+
+- **"GPU available: False"**: Check that PyTorch was installed with CUDA support (re-run the PyTorch install command from pytorch.org with CUDA selected).
+- **CUDA version mismatch**: Ensure your CUDA Toolkit version matches the version PyTorch was compiled for (e.g., both CUDA 12.1).
+- **Still not working?** Set ``CUDA_VISIBLE_DEVICES=""`` in your shell before running ORILINX to fall back to CPU, then run with ``--verbose`` flag and report the error.
+
+**CPU-Only Installation**
+
+If you don't have an NVIDIA GPU or prefer not to use GPU acceleration, ORILINX will automatically run on CPU (slower but still functional). No additional setup is needed beyond standard PyTorch installation.
+
 Installation
 ---------------------
 
