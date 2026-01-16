@@ -117,7 +117,7 @@ These options help ORILINX run faster or work around computer limitations.
 - ``--no-progress`` : Hide the animated progress bars. Use this if you're running ORILINX on a remote server, in a cluster job, or in a script where progress bars don't display correctly or cause output issues.
 
 Specifying model paths
----------------------
+----------------------
 
 With correct installation, this shouldn't be needed, but you can manually specify model locations using environment variables if ORILINX can't find them:
 
