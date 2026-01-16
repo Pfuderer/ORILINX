@@ -165,11 +165,45 @@ def _resolve_chroms_from_fasta(fasta_path: str, arg: str):
     return [c for c in primary if c in refs], ranges_dict
 
 
-def _write_bedgraph_center(df, path, value="logit"):
+def _write_csv_windows(df, path):
+    """Write window data to CSV with columns: chromosome, start, end, probability, logit"""
+    df_out = df[["chrom", "start", "end", "prob", "logit"]].copy()
+    df_out.to_csv(path, sep=",", header=True, index=False)
+
+
+def _write_bedgraph_center(df, path, value="logit", stride=1000, region_start=None, region_end=None):
     with open(path, "w") as fh:
-        for _, r in df.iterrows():
-            c = r["chrom"]; p = int(r["center"]); v = float(r[value])
-            fh.write(f"{c}\t{p}\t{p+1}\t{v:.6f}\n")
+        if stride < 2000:
+            # For overlapping windows, output non-overlapping intervals
+            # Each interval is centered on the window center with width equal to stride
+            prev_end = None
+            for idx, (_, r) in enumerate(df.iterrows()):
+                c = r["chrom"]; v = float(r[value])
+                center = int(r["center"])
+                half_stride = stride / 2.0
+                interval_start = int(center - half_stride)
+                interval_end = int(center + half_stride)
+                
+                # Adjust start if it would overlap with previous interval
+                if prev_end is not None and interval_start <= prev_end:
+                    interval_start = prev_end + 1
+                
+                # Adjust first interval to region start
+                if idx == 0 and region_start is not None:
+                    interval_start = region_start
+                
+                # Adjust last interval to region end
+                if idx == len(df) - 1 and region_end is not None:
+                    interval_end = region_end
+                
+                fh.write(f"{c}\t{interval_start}\t{interval_end}\t{v:.6f}\n")
+                prev_end = interval_end
+        else:
+            # Use full window coordinates when stride >= window length
+            for _, r in df.iterrows():
+                c = r["chrom"]; v = float(r[value])
+                start = int(r["start"]); end = int(r["end"])
+                fh.write(f"{c}\t{start}\t{end}\t{v:.6f}\n")
 
 
 # --- hard-disable ALL fast/unpadded attention flags (module-wise) ---
@@ -283,6 +317,7 @@ def main(argv=None):
     p.add_argument("--num_workers", type=int, default=8, help="Number of worker processes used by DataLoader for data loading (0 runs in main process).")
     p.add_argument("--sequence_names", type=str, default="all", help='Comma-separated list of sequence names to process; supports ranges (e.g., "chr1,chr2:2000-6000"); use "all" for all primary sequences.')
     p.add_argument("--score", choices=["logit","prob"], default="prob", help="Output score type: 'logit' (raw model logits) or 'prob' (sigmoid probability).")
+    p.add_argument("--output_csv", action="store_true", help="Also output results as CSV files with columns: chromosome, start, end, probability, logit.")
     p.add_argument("--disable_flash", action="store_true", help="Force non-flash (padded) attention mode; safer for long sequences.")
     p.add_argument("--no-progress", dest="no_progress", action="store_true", help="Disable progress bars (useful for logging or non-interactive runs).")
     p.add_argument("--verbose", action="store_true", help="Enable verbose output (prints DNABERT path, model checkpoint, device and runtime settings).")
@@ -491,7 +526,21 @@ def main(argv=None):
             continue
 
         df = pd.DataFrame(rows, columns=["chrom","start","end","center","logit","prob"])
-        _write_bedgraph_center(df, os.path.join(args.output_dir, f"{chrom}.bedGraph"), value=args.score)
+        # Sort by genomic position to ensure ordered output
+        df = df.sort_values(by="start").reset_index(drop=True)
+        
+        # Determine region boundaries for this chrom
+        if chrom in ranges:
+            region_start, region_end = ranges[chrom]
+        else:
+            region_start, region_end = None, None
+        
+        # Write bedgraph output
+        _write_bedgraph_center(df, os.path.join(args.output_dir, f"{chrom}.bedGraph"), value=args.score, stride=args.stride, region_start=region_start, region_end=region_end)
+        
+        # Write CSV output if requested
+        if getattr(args, "output_csv", False):
+            _write_csv_windows(df, os.path.join(args.output_dir, f"{chrom}.csv"))
 
     print("Done.")
 
