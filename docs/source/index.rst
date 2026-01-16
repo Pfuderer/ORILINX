@@ -5,8 +5,12 @@
    :maxdepth: 1
    :caption: Contents:
 
+   quickStart
    installation
-   workflow
+   outputFormats
+   visualisation
+   examples
+   troubleshooting
    releaseNotes
 
 

@@ -1,3 +1,5 @@
+"""Model architecture and utilities for ORILINX."""
+
 import os
 import warnings
 import logging
@@ -16,8 +18,6 @@ logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
 logging.getLogger("transformers.fsdp").setLevel(logging.ERROR)
 logging.getLogger("torch.distributed.fsdp").setLevel(logging.ERROR)
 
-# Prefer locating DNABERT under a `models/` directory (searched upward from CWD)
-# or via the ORILINX_DNABERT_PATH env var.
 
 def _find_dnabert_local_path():
     """Find a DNABERT installation path.
@@ -61,6 +61,8 @@ def _find_dnabert_local_path():
 
 
 class DnaBertOriginModel(nn.Module):
+    """DNABERT-2 model with LoRA fine-tuning for origin prediction."""
+
     def __init__(
         self,
         model_name=None,
@@ -155,8 +157,10 @@ class DnaBertOriginModel(nn.Module):
 
     def forward(self, input_ids, attention_mask, **kwargs):
         """
-        This forward pass correctly processes the output from the base model,
-        applies the classification head, and returns logits for the loss function.
+        Forward pass for the model.
+
+        Processes the output from the base model, applies the classification head,
+        and returns logits for the loss function.
         """
         # Get the output from the base PEFT-tuned DNABERT model
         outputs = self.dnabert(
@@ -182,3 +186,48 @@ class DnaBertOriginModel(nn.Module):
 
         # Return the logits and the hidden states in a tuple
         return logits, hidden_states
+
+
+def disable_unpad_and_flash_everywhere(model):
+    """Hard-disable all fast/unpadded attention flags across all model modules.
+    
+    Forces the model to use standard PyTorch attention paths instead of optimized
+    kernels, which can be more stable in some environments.
+    """
+    # Try on top-level config
+    cfg = getattr(getattr(model, "dnabert", model), "config", None)
+    if cfg is not None:
+        for nm in ("use_flash_attn", "flash_attn", "use_memory_efficient_attention", "unpad"):
+            if hasattr(cfg, nm):
+                try:
+                    setattr(cfg, nm, False)
+                except Exception:
+                    pass
+        # Key fix: set attention_probs_dropout_prob to non-zero to force PyTorch path
+        # BertUnpadSelfAttention checks: if self.p_dropout or flash_attn_qkvpacked_func is None
+        # We set p_dropout > 0 to always take the PyTorch path
+        if hasattr(cfg, "attention_probs_dropout_prob"):
+            try:
+                cfg.attention_probs_dropout_prob = 0.01  # Small nonzero value
+            except Exception:
+                pass
+    # Try on all submodules (DNABERT variants differ in attribute names/placement)
+    for m in model.modules():
+        for nm in ("use_flash_attn", "flash_attn", "use_memory_efficient_attention", "unpad"):
+            if hasattr(m, nm):
+                try:
+                    setattr(m, nm, False)
+                except Exception:
+                    pass
+        # Key fix: also directly set p_dropout on BertUnpadSelfAttention modules
+        if hasattr(m, "p_dropout"):
+            try:
+                m.p_dropout = 0.01
+            except Exception:
+                pass
+        # Set attention_probs_dropout_prob on config objects in submodules too
+        if hasattr(m, "config") and hasattr(m.config, "attention_probs_dropout_prob"):
+            try:
+                m.config.attention_probs_dropout_prob = 0.01
+            except Exception:
+                pass
