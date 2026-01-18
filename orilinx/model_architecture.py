@@ -203,7 +203,7 @@ def disable_unpad_and_flash_everywhere(model):
                     setattr(cfg, nm, False)
                 except Exception:
                     pass
-        # Key fix: set attention_probs_dropout_prob to non-zero to force PyTorch path
+        # set attention_probs_dropout_prob to non-zero to force PyTorch path
         # BertUnpadSelfAttention checks: if self.p_dropout or flash_attn_qkvpacked_func is None
         # We set p_dropout > 0 to always take the PyTorch path
         if hasattr(cfg, "attention_probs_dropout_prob"):
@@ -219,7 +219,7 @@ def disable_unpad_and_flash_everywhere(model):
                     setattr(m, nm, False)
                 except Exception:
                     pass
-        # Key fix: also directly set p_dropout on BertUnpadSelfAttention modules
+        # directly set p_dropout on BertUnpadSelfAttention modules
         if hasattr(m, "p_dropout"):
             try:
                 m.p_dropout = 0.01

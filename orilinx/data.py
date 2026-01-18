@@ -3,6 +3,7 @@
 import warnings
 import torch
 from torch.utils.data import IterableDataset
+import pysam
 
 
 class SlidingWindows(IterableDataset):
@@ -19,7 +20,6 @@ class SlidingWindows(IterableDataset):
 
     def __iter__(self):
         """Yield windows, distributing across workers via round-robin indexing."""
-        import pysam
         from torch.utils.data import get_worker_info
 
         worker_info = get_worker_info()
@@ -69,7 +69,6 @@ class SlidingWindows(IterableDataset):
         from reference lengths, window and stride and therefore is stable
         and inexpensive.
         """
-        import pysam
         fa = pysam.FastaFile(self.fasta_path)
         try:
             total = 0
@@ -101,7 +100,6 @@ def resolve_chroms_from_fasta(fasta_path: str, arg: str):
     - chroms_list: list of sequence names to process
     - ranges_dict: dict mapping chrom -> (start, end) for ranges, or empty dict if no ranges
     """
-    import pysam
     fa = pysam.FastaFile(fasta_path)
     refs = list(fa.references)
     ref_lengths = {name: fa.get_reference_length(name) for name in refs}
