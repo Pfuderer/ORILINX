@@ -1,5 +1,3 @@
-"""Utility functions for resource discovery and path resolution."""
-
 import os
 
 

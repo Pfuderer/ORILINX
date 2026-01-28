@@ -1,5 +1,3 @@
-"""Model architecture and utilities for ORILINX."""
-
 import os
 import warnings
 import logging

@@ -7,13 +7,14 @@ name = "orilinx"
 version = "1.0.0"
 description = "Genome-wide origin scoring with DNABERT-2"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
-  "torch",
-  "transformers",
-  "pysam",
-  "pandas",
-  "numpy",
+  "torch==2.6.0",
+  "transformers==4.57.5",
+  "pysam==0.23.3",
+  "pandas==2.3.3",
+  "numpy==2.2.6",
+  "einops==0.8.2",
 ]
 
 [project.scripts]
@@ -23,12 +24,14 @@ orilinx-predict = "orilinx.cli:main"
 
 [project.optional-dependencies]
 all = [
-  "torch",
-  "transformers",
-  "pysam",
-  "pandas",
-  "numpy",
-  "peft",
+  "torch==2.6.0",
+  "transformers==4.57.5",
+  "pysam==0.23.3",
+  "pandas==2.3.3",
+  "numpy==2.2.6",
+  "einops==0.8.2",
+  "peft==0.18.1",
+  "accelerate==1.12.0",
 ]
 
 [tool.setuptools.packages.find]

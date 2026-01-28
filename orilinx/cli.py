@@ -1,5 +1,3 @@
-"""Command-line interface for ORILINX genome-wide origin prediction."""
-
 import os
 import sys
 import argparse
@@ -277,7 +275,17 @@ def main(argv=None):
                     # Attempt model forward pass with fallback for Triton compilation errors
                     try:
                         logits, _ = model(**inputs)
-                    except Exception as e:
+                    except RuntimeError as e:
+                        # Detect CUDA out-of-memory error
+                        if "out of memory" in str(e).lower() or "cuda" in str(e).lower():
+                            raise RuntimeError(
+                                f"GPU out of memory error during batch processing.\n"
+                                f"Batch size: {args.batch_size}\n"
+                                f"Sequence: {chrom}\n"
+                                f"\nTry reducing --batch_size (current: {args.batch_size}) or use --disable_flash.\n"
+                                f"Original error: {e}"
+                            ) from e
+                        
                         # Detect Triton compilation error
                         is_triton_compile_error = False
                         try:
@@ -304,6 +312,11 @@ def main(argv=None):
                                 ) from e2
                         else:
                             raise
+                    except Exception as e:
+                        # Catch other exceptions and add context
+                        raise RuntimeError(
+                            f"Error during model forward pass on sequence {chrom} with batch_size={args.batch_size}: {e}"
+                        ) from e
 
                     probs = torch.sigmoid(logits)
 

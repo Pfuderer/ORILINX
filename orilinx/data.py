@@ -1,5 +1,3 @@
-"""Data loading and processing for genomic windows."""
-
 import warnings
 import torch
 from torch.utils.data import IterableDataset

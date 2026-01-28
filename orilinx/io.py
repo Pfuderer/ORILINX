@@ -1,6 +1,3 @@
-"""Output file writing for prediction results."""
-
-
 def write_csv_windows(df, path):
     """Write window data to CSV with columns: chromosome, start, end, probability, logit."""
     df_out = df[["chrom", "start", "end", "prob", "logit"]].copy()
