@@ -11,11 +11,11 @@ requires-python = ">=3.9"
 dependencies = [
   "torch==2.6.0",
   "transformers==4.57.5",
-  "pysam==0.23.3",
-  "pandas==2.3.3",
-  "numpy==2.2.6",
-  "einops==0.8.2",
-  "peft==0.18.1",
+  "pysam>=0.23.0",
+  "pandas>=2.0.0",
+  "numpy>=1.20.0",
+  "einops>=0.8.0",
+  "peft>=0.15.0",
   "accelerate==1.12.0",
 ]
 
@@ -26,3 +26,4 @@ orilinx-predict = "orilinx.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["orilinx*"]
+
