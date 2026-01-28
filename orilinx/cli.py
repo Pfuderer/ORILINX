@@ -214,6 +214,11 @@ def main(argv=None):
         trust_remote_code=True,
         local_files_only=True,
     
+        resolved_dnabert,
+        use_fast=True,
+        trust_remote_code=True,
+        local_files_only=True,
+    
         disable_unpad_and_flash_everywhere(model)
     
     model.eval()
