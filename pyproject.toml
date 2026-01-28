@@ -15,24 +15,14 @@ dependencies = [
   "pandas==2.3.3",
   "numpy==2.2.6",
   "einops==0.8.2",
+  "peft==0.18.1",
+  "accelerate==1.12.0",
 ]
 
 [project.scripts]
 orilinx = "orilinx.cli:main"
 # Backwards compatibility
 orilinx-predict = "orilinx.cli:main"
-
-[project.optional-dependencies]
-all = [
-  "torch==2.6.0",
-  "transformers==4.57.5",
-  "pysam==0.23.3",
-  "pandas==2.3.3",
-  "numpy==2.2.6",
-  "einops==0.8.2",
-  "peft==0.18.1",
-  "accelerate==1.12.0",
-]
 
 [tool.setuptools.packages.find]
 include = ["orilinx*"]
