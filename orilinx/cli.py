@@ -184,7 +184,12 @@ def main(argv=None):
         )
 
     # Load tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained(resolved_dnabert, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        resolved_dnabert,
+        use_fast=True,
+        trust_remote_code=True,
+        local_files_only=True,
+    )
     model = DnaBertOriginModel(model_name=resolved_dnabert, enable_grad_checkpointing=False)
 
     # Find and load model checkpoint
