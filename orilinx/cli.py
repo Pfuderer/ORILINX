@@ -2,21 +2,7 @@ import os
 import sys
 import argparse
 import urllib.request
-import hashlib
 from pathlib import Path
-
-import numpy as np
-import pandas as pd
-import pysam
-import torch
-from torch.utils.data import DataLoader
-from transformers import PreTrainedTokenizerFast
-from torch.amp import autocast
-
-from .model_architecture import DnaBertOriginModel, _find_dnabert_local_path, disable_unpad_and_flash_everywhere
-from .data import SlidingWindows, resolve_chroms_from_fasta
-from .io import write_bedgraph_center, write_csv_windows
-from .utils import find_default_model_path
 
 
 # Model download URLs
@@ -178,6 +164,9 @@ def _fetch_models(force: bool = False, verbose: bool = False) -> int:
 
 def _doctor() -> int:
     """Preflight checks for model assets; returns process exit code."""
+    from .model_architecture import _find_dnabert_local_path
+    from .utils import find_default_model_path
+    
     problems = []
 
     def _note(msg: str):
@@ -254,6 +243,8 @@ def _doctor() -> int:
 
 def _create_collate_fn(tokenizer):
     """Create a collate function for the DataLoader."""
+    import torch
+    
     def _collate(batch):
         seqs = [b["seq"] for b in batch]
         toks = tokenizer(
@@ -279,6 +270,9 @@ def _create_collate_fn(tokenizer):
 
 def _load_model(model_path, device):
     """Load model checkpoint with helpful error messages."""
+    import torch
+    from .model_architecture import DnaBertOriginModel, _find_dnabert_local_path
+    
     try:
         ckpt = torch.load(model_path, map_location="cpu")  # keep on CPU for safety
     except Exception as e:
@@ -363,6 +357,20 @@ def main(argv=None):
 
 def _run_predict(argv):
     """Main prediction pipeline."""
+    # Import heavy dependencies only when running predictions
+    import numpy as np
+    import pandas as pd
+    import pysam
+    import torch
+    from torch.utils.data import DataLoader
+    from transformers import PreTrainedTokenizerFast
+    from torch.amp import autocast
+
+    from .model_architecture import DnaBertOriginModel, _find_dnabert_local_path, disable_unpad_and_flash_everywhere
+    from .data import SlidingWindows, resolve_chroms_from_fasta
+    from .io import write_bedgraph_center, write_csv_windows
+    from .utils import find_default_model_path
+    
     p = argparse.ArgumentParser(description="Genome-wide origin scores with ORILINX.")
     p.add_argument(
         "--fasta_path",
