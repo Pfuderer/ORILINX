@@ -29,9 +29,10 @@ From: nvidia/cuda:13.1.0-devel-ubuntu24.04
     # Clone and compile DNAscent
     mkdir -p /app
     cd app
-    git clone --recursive https://github.com/MBoemo/DNAscent.git
-    cd DNAscent
-    make
+    git clone --recursive https://github.com/Pfuderer/ORILINX.git
+    cd ORILINX
+    pip install -e .
+    orilinx fetch_models
     
 %environment
 

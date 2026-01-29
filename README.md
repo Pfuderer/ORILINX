@@ -3,7 +3,7 @@
 # ORILINX
 [![Documentation Status](https://readthedocs.org/projects/orilinx/badge/?version=latest)](https://orilinx.readthedocs.io/en/latest/?badge=latest)
 
-ORILINX is a large language model built on DNABERT-2 to detect the location of replication origins across multiple eukaryotic genomes.
+ORILINX is a large language model built on DNABERT-2 to detect the location of replication origins across genomes.
 
 ### Building from Source
 
