@@ -136,8 +136,6 @@ After installation, download the required model weights::
 
 This downloads ~900 MB of model weights from Hugging Face. 
 
-**Note for HPC users:** This is especially useful on HPC systems where Git LFS may not be available or configured correctly. It provides an alternative to ``git lfs pull`` for obtaining the model weights.
-
 If you want to re-download the model weights (e.g., after a corrupted download), use::
 
     orilinx fetch_models --force
