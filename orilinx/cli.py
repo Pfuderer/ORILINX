@@ -16,6 +16,92 @@ from .io import write_bedgraph_center, write_csv_windows
 from .utils import find_default_model_path
 
 
+def _is_git_lfs_pointer_file(path: str) -> bool:
+    """Return True if `path` looks like a Git LFS pointer file."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(256)
+        # LFS pointers are small text files starting with this header.
+        return head.startswith(b"version https://git-lfs.github.com/spec/v1")
+    except Exception:
+        return False
+
+
+def _doctor() -> int:
+    """Preflight checks for model assets; returns process exit code."""
+    problems = []
+
+    def _note(msg: str):
+        print(msg)
+
+    _note("[orilinx] Doctor: checking local model assets...")
+
+    # Check DNABERT directory
+    resolved_dnabert = _find_dnabert_local_path()
+    if not resolved_dnabert:
+        problems.append(
+            "DNABERT path not found. Set ORILINX_DNABERT_PATH or place DNABERT under a models/ directory."
+        )
+    else:
+        if not os.path.isdir(resolved_dnabert):
+            problems.append(f"DNABERT path does not exist or is not a directory: {resolved_dnabert}")
+        else:
+            cfg = os.path.join(resolved_dnabert, "config.json")
+            if not os.path.isfile(cfg):
+                problems.append(f"DNABERT config.json not found at: {cfg}")
+
+            weight_candidates = [
+                os.path.join(resolved_dnabert, "pytorch_model.bin"),
+                os.path.join(resolved_dnabert, "model.safetensors"),
+                os.path.join(resolved_dnabert, "pytorch_model.bin.index.json"),
+            ]
+            have_any = any(os.path.exists(p) for p in weight_candidates)
+            if not have_any:
+                problems.append(
+                    "DNABERT weights not found (expected pytorch_model.bin/model.safetensors or an index file) "
+                    f"under: {resolved_dnabert}"
+                )
+            else:
+                for pth in weight_candidates:
+                    if os.path.isfile(pth) and _is_git_lfs_pointer_file(pth):
+                        problems.append(
+                            f"DNABERT weight file appears to be a Git LFS pointer (not downloaded): {pth}"
+                        )
+
+    # Check fine-tuned checkpoint
+    model_path = None
+    try:
+        model_path = find_default_model_path()
+    except Exception as e:
+        problems.append(f"Failed while resolving checkpoint path: {e}")
+
+    if not model_path:
+        problems.append(
+            "Fine-tuned checkpoint not found. Put a .pt file under models/ or set ORILINX_MODEL=/path/to/model.pt"
+        )
+    else:
+        if _is_git_lfs_pointer_file(model_path):
+            problems.append(
+                f"Checkpoint appears to be a Git LFS pointer (not downloaded): {model_path}"
+            )
+
+    if not problems:
+        _note("[orilinx] Doctor: OK (models look present).")
+        return 0
+
+    _note("[orilinx] Doctor: problems detected:\n")
+    for p in problems:
+        _note(f"- {p}")
+
+    _note(
+        "\n[orilinx] Fix suggestions:\n"
+        "- If you cloned from Git, install Git LFS and fetch large files: `git lfs install` then `git lfs pull`\n"
+        "- Some HPCs set `GIT_LFS_SKIP_SMUDGE=1`; unset it and run `git lfs pull`\n"
+        "- If outbound network access is restricted, copy weights from a machine that can fetch them, or set ORILINX_MODEL/ORILINX_DNABERT_PATH to shared locations"
+    )
+    return 2
+
+
 def _create_collate_fn(tokenizer):
     """Create a collate function for the DataLoader."""
     def _collate(batch):
@@ -104,12 +190,12 @@ def main(argv=None):
     p = argparse.ArgumentParser(description="Genome-wide origin scores with ORILINX.")
     p.add_argument(
         "--fasta_path",
-        required=True,
+        default=None,
         help="Path to the reference FASTA file; an index (.fai) must be present."
     )
     p.add_argument(
         "--output_dir",
-        required=True,
+        default=None,
         help="Directory where per-sequence output bedgraphs will be written."
     )
     p.add_argument(
@@ -127,7 +213,7 @@ def main(argv=None):
     p.add_argument(
         "--batch_size",
         type=int,
-        default=64,
+        default=32,
         help="Number of windows per batch; increase for throughput if memory allows."
     )
     p.add_argument(
@@ -170,7 +256,21 @@ def main(argv=None):
         action="store_true",
         help="Enable verbose output (prints DNABERT path, model checkpoint, device and runtime settings)."
     )
+    p.add_argument(
+        "--doctor",
+        action="store_true",
+        help="Check that required model files are present (and not Git LFS pointer files), then exit."
+    )
     args = p.parse_args(argv)
+
+    if getattr(args, "doctor", False):
+        raise SystemExit(_doctor())
+
+    # Validate required args for normal prediction runs.
+    if not args.fasta_path:
+        p.error("--fasta_path is required (unless --doctor is used)")
+    if not args.output_dir:
+        p.error("--output_dir is required (unless --doctor is used)")
 
     os.makedirs(args.output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

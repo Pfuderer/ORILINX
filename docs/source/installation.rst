@@ -207,7 +207,7 @@ These settings control how ORILINX analyses your genome, one region at a time.
 
 These options help ORILINX run faster or work around computer limitations.
 
-- ``--batch_size INT`` (default: 64) : How many regions to analyse at once. If you have a powerful GPU, increase this (e.g., 128 or 256) for faster analysis. If you run out of memory, decrease it (e.g., 32 or 16). Larger batch sizes are generally faster but consume more GPU/CPU memory.
+- ``--batch_size INT`` (default: 32) : How many regions to analyse at once. If you have a powerful GPU, you can increase this for faster analysis. If you run out of memory, decrease it (e.g., 16 or 8). Larger batch sizes are generally faster but consume more GPU/CPU memory.
 
 - ``--num_workers INT`` (default: 8) : How many background processes to use for loading data. Higher numbers are faster but use more resources. Set this based on your CPU core count. If you experience problems, set this to 0 to disable parallel processing (slower but more stable).
 

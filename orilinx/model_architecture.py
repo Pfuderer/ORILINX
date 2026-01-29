@@ -90,9 +90,20 @@ class DnaBertOriginModel(nn.Module):
             trust_remote_code=True,
             local_files_only=True,
             return_dict=True,
-            output_hidden_states=True,
-            output_attentions=True
         )
+
+        # These dramatically increase activation memory in inference. Keep them off by default.
+        # (Callers can still request them explicitly via kwargs on the forward call.)
+        for attr, val in (
+            ("output_hidden_states", False),
+            ("output_attentions", False),
+            ("return_dict", True),
+        ):
+            if hasattr(cfg, attr):
+                try:
+                    setattr(cfg, attr, val)
+                except Exception:
+                    pass
         for attr in ("use_flash_attn", "flash_attn", "use_flash_attn_mha"):
             if hasattr(cfg, attr):
                 setattr(cfg, attr, False)
@@ -164,11 +175,10 @@ class DnaBertOriginModel(nn.Module):
         outputs = self.dnabert(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            output_hidden_states=True,  # Ensure hidden states are returned
             **kwargs,
         )
 
-        # Handle both tuple (grad checkpointing ON) and object (OFF) outputs
+        # Handle both tuple (some models / grad checkpointing) and object outputs
         if isinstance(outputs, tuple):
             last_hidden_state = outputs[0]
             hidden_states = outputs[2] if len(outputs) > 2 else None

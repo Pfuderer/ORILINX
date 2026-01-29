@@ -52,7 +52,7 @@ orilinx --fasta_path genome.fa --output_dir results --output_csv
 - `--output_csv`: Generate CSV files in addition to bedGraph files.
 - `--score {logit,prob}` (default: prob): Output score format (probability 0-1 or raw logit).
 - `--stride INT` (default: 1000): Sliding window stride in bp. Smaller values = more detail but slower.
-- `--batch_size INT` (default: 64): Regions per batch. Increase for faster analysis on powerful GPUs; decrease if out of memory.
+- `--batch_size INT` (default: 32): Regions per batch. Increase for faster analysis if memory allows; decrease if you hit CUDA out-of-memory.
 - `--num_workers INT` (default: 8): Background processes for data loading. Set to 0 if experiencing issues.
 - `--max_N_frac FLOAT` (default: 0.05): Skip regions with >5% unknown bases ("N"). Adjust tolerance as needed.
 - `--disable_flash`: Use standard attention instead of flash attention (slower but compatible with more GPUs).
@@ -73,8 +73,8 @@ orilinx --fasta_path hg38.fa --output_dir results --sequence_names chr1,chr2,chr
 # Analyse specific genomic region (1 Mb region on chr8)
 orilinx --fasta_path hg38.fa --output_dir results --sequence_names chr8:10000000-11000000
 
-# Fast mode with larger batches (needs GPU with ≥12GB VRAM)
-orilinx --fasta_path hg38.fa --output_dir results --batch_size 256
+# Larger batches for throughput (VRAM-dependent; reduce if you hit OOM)
+orilinx --fasta_path hg38.fa --output_dir results --batch_size 64
 
 # Verbose output and no progress bars (for CI/logging)
 orilinx --fasta_path hg38.fa --output_dir results --verbose --no-progress

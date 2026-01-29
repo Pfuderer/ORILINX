@@ -27,7 +27,7 @@ To run ORILINX genome-wide on all primary chromosomes (chr1-chr22, chrX), use th
    orilinx --fasta_path chm13v2.0.fa \
            --output_dir genome_wide_results \
            --stride 1000 \
-           --batch_size 64 \
+           --batch_size 32 \
            --num_workers 8
 
 This will generate separate bedGraph files for each chromosome in the output directory. The default stride of 1000 bp provides good coverage while avoiding excessive overlap between windows.
