@@ -80,3 +80,4 @@ orilinx.egg-info/
 
 # Ignore Windows Zone.Identifier files
 *:Zone.Identifiermodels/model_epoch_6.pt
+models/model_epoch_6.pt
