@@ -7,7 +7,7 @@ import pandas as pd
 import pysam
 import torch
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerFast
 from torch.amp import autocast
 
 from .model_architecture import DnaBertOriginModel, _find_dnabert_local_path, disable_unpad_and_flash_everywhere
@@ -184,10 +184,8 @@ def main(argv=None):
         )
 
     # Load tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained(
+    tokenizer = PreTrainedTokenizerFast.from_pretrained(
         resolved_dnabert,
-        use_fast=True,
-        trust_remote_code=True,
         local_files_only=True,
     )
     model = DnaBertOriginModel(model_name=resolved_dnabert, enable_grad_checkpointing=False)
@@ -214,16 +212,6 @@ def main(argv=None):
             print("[orilinx] Progress bars: disabled")
 
     if args.disable_flash:
-        resolved_dnabert,
-        use_fast=True,
-        trust_remote_code=True,
-        local_files_only=True,
-    
-        resolved_dnabert,
-        use_fast=True,
-        trust_remote_code=True,
-        local_files_only=True,
-    
         disable_unpad_and_flash_everywhere(model)
     
     model.eval()
