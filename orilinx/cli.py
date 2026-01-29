@@ -234,8 +234,6 @@ def _doctor() -> int:
     _note(
         "\n[orilinx] Fix suggestions:\n"
         "- Run 'orilinx fetch_models' to download model weights from Hugging Face\n"
-        "- Alternatively, if you cloned from Git, install Git LFS and fetch large files: `git lfs install` then `git lfs pull`\n"
-        "- Some HPCs set `GIT_LFS_SKIP_SMUDGE=1`; unset it and run `git lfs pull`\n"
         "- If outbound network access is restricted, copy weights from a machine that can fetch them, or set ORILINX_MODEL/ORILINX_DNABERT_PATH to shared locations"
     )
     return 2
