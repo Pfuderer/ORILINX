@@ -357,20 +357,6 @@ def main(argv=None):
 
 def _run_predict(argv):
     """Main prediction pipeline."""
-    # Import heavy dependencies only when running predictions
-    import numpy as np
-    import pandas as pd
-    import pysam
-    import torch
-    from torch.utils.data import DataLoader
-    from transformers import PreTrainedTokenizerFast
-    from torch.amp import autocast
-
-    from .model_architecture import DnaBertOriginModel, _find_dnabert_local_path, disable_unpad_and_flash_everywhere
-    from .data import SlidingWindows, resolve_chroms_from_fasta
-    from .io import write_bedgraph_center, write_csv_windows
-    from .utils import find_default_model_path
-    
     p = argparse.ArgumentParser(description="Genome-wide origin scores with ORILINX.")
     p.add_argument(
         "--fasta_path",
@@ -455,6 +441,20 @@ def _run_predict(argv):
         p.error("--fasta_path is required (unless --doctor is used)")
     if not args.output_dir:
         p.error("--output_dir is required (unless --doctor is used)")
+
+    # Import heavy dependencies only when actually running predictions
+    import numpy as np
+    import pandas as pd
+    import pysam
+    import torch
+    from torch.utils.data import DataLoader
+    from transformers import PreTrainedTokenizerFast
+    from torch.amp import autocast
+
+    from .model_architecture import DnaBertOriginModel, _find_dnabert_local_path, disable_unpad_and_flash_everywhere
+    from .data import SlidingWindows, resolve_chroms_from_fasta
+    from .io import write_bedgraph_center, write_csv_windows
+    from .utils import find_default_model_path
 
     os.makedirs(args.output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
