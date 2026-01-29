@@ -118,29 +118,35 @@ If you don't have an NVIDIA GPU or prefer not to use GPU acceleration, ORILINX w
 Installation
 ---------------------
 
-**Step 1: Install ORILINX**
+**Option A: Install from PyPI (Recommended)**
 
-Open a terminal and run::
+The simplest way to install ORILINX::
 
+    pip install orilinx
+    orilinx fetch_models
+
+This installs ORILINX and then downloads the required model weights (~900 MB) from Hugging Face.
+
+**Option B: Install from Source**
+
+For development or to use the latest unreleased version::
+
+    git clone https://github.com/Pfuderer/ORILINX.git
+    cd ORILINX
     pip install -e .
+    orilinx fetch_models
 
-This installs ORILINX from the current directory. The ``-e`` flag means it will update automatically if you edit the code.
+The ``-e`` flag means it will update automatically if you edit the code.
 
 If you get a "command not found" error for ``pip``, you may need to use ``pip3`` instead.
 
-**Step 2: Download Model Weights**
+**Re-downloading Model Weights**
 
-After installation, download the required model weights::
-
-    orilinx fetch_models
-
-This downloads ~900 MB of model weights from Hugging Face. 
-
-If you want to re-download the model weights (e.g., after a corrupted download), use::
+If you need to re-download the model weights (e.g., after a corrupted download), use::
 
     orilinx fetch_models --force
 
-**Step 3: Prepare Your Data**
+**Step 2: Prepare Your Data**
 
 ORILINX only needs one input: a genome file in FASTA format. Standard genomes like hg38 can be downloaded from NCBI or Ensembl.
 

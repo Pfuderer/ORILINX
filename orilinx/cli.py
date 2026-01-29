@@ -5,11 +5,27 @@ import urllib.request
 from pathlib import Path
 
 
+# Base URLs for model downloads
+HUGGINGFACE_ORILINX = "https://huggingface.co/MBoemo/ORILINX/resolve/main"
+HUGGINGFACE_DNABERT = "https://huggingface.co/MBoemo/DNABERT-2-117M-Flash/resolve/main"
+
 # Model download URLs
 MODEL_URLS = {
-    "model_epoch_6.pt": "https://huggingface.co/MBoemo/ORILINX/resolve/main/model_epoch_6.pt",
-    "pytorch_model.bin": "https://huggingface.co/MBoemo/DNABERT-2-117M-Flash/resolve/main/pytorch_model.bin",
+    "model_epoch_6.pt": f"{HUGGINGFACE_ORILINX}/model_epoch_6.pt",
+    "pytorch_model.bin": f"{HUGGINGFACE_DNABERT}/pytorch_model.bin",
 }
+
+# DNABERT config/code files (small files needed for tokenizer and model loading)
+DNABERT_FILES = [
+    "config.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "generation_config.json",
+    "bert_layers.py",
+    "bert_padding.py",
+    "configuration_bert.py",
+    "flash_attn_triton.py",
+]
 
 
 def _is_git_lfs_pointer_file(path: str) -> bool:
@@ -99,7 +115,7 @@ def _download_with_progress(url: str, dest_path: Path, desc: str = None) -> None
 
 
 def _fetch_models(force: bool = False, verbose: bool = False) -> int:
-    """Download model weights from Hugging Face.
+    """Download model weights and DNABERT files from Hugging Face.
     
     Returns exit code: 0 on success, non-zero on failure.
     """
@@ -112,6 +128,31 @@ def _fetch_models(force: bool = False, verbose: bool = False) -> int:
     models_dir.mkdir(parents=True, exist_ok=True)
     dnabert_dir.mkdir(parents=True, exist_ok=True)
     
+    errors = []
+    
+    # Download DNABERT config/code files (small files)
+    print("[orilinx] Downloading DNABERT-2 configuration files...")
+    for filename in DNABERT_FILES:
+        dest = dnabert_dir / filename
+        url = f"{HUGGINGFACE_DNABERT}/{filename}"
+        
+        if dest.exists() and not force:
+            if verbose:
+                print(f"  {filename}: already exists, skipping")
+            continue
+        
+        try:
+            if verbose:
+                print(f"  Downloading {filename}...")
+            urllib.request.urlretrieve(url, dest)
+        except Exception as e:
+            errors.append(f"{filename}: {e}")
+            print(f"[orilinx] ERROR downloading {filename}: {e}")
+    
+    if not errors:
+        print(f"[orilinx] DNABERT-2 config files: OK")
+    
+    # Download large model files
     files_to_download = [
         {
             "name": "model_epoch_6.pt",
@@ -126,8 +167,6 @@ def _fetch_models(force: bool = False, verbose: bool = False) -> int:
             "desc": "DNABERT-2 base model weights",
         },
     ]
-    
-    errors = []
     
     for file_info in files_to_download:
         dest = file_info["dest"]

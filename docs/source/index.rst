@@ -27,7 +27,7 @@ Publications
 
 If you use ORILINX for your research, please cite our publication:
 
-Jones MJK,  Rai SK,  Pfuderer PL, Bonfim-Melo A, Pagan JK, Clarke PR, McClelland SE, Boemo MA. A high-resolution, nanopore-based artificial intelligence assay for DNA replication stress in human cancer cells. [`bioRxiv <https://doi.org/10.1101/2022.09.22.509021>`_]
+Pfuderer PL, Berkemeier F, Nassar J, Crisp A, Jaworski JJ, Moore J, Sale JE, Boemo MA. A genome language model for mapping DNA replication origins. bioRxiv 2026. [DOI]
 
 Bugs, Questions, and Comments
 -----------------------------

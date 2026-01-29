@@ -3,7 +3,7 @@
 Release Notes
 ===============================
 
-v1.0.0
+v1.0.1
 -----------------
 
 * ORILINX takes a fasta file of mammalian DNA as input and produces a csv or bed file indicating the probability that each locus can act as an origin of replication.

@@ -9,14 +9,19 @@ Get ORILINX running in 5 minutes.
 Installation
 ------------
 
-Install via pip::
+Install from PyPI::
 
-    git clone --recursive https://github.com/Pfuderer/ORILINX.git
+    pip install orilinx
+    orilinx fetch_models
+
+Or install from source::
+
+    git clone https://github.com/Pfuderer/ORILINX.git
     cd ORILINX
     pip install -e .
     orilinx fetch_models
 
-ORILINX includes a pre-trained model and everything you need.
+ORILINX includes a pre-trained model. The ``fetch_models`` command downloads the required weights (~900 MB).
 
 Get a genome
 ------------
