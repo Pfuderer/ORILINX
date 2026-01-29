@@ -24,3 +24,10 @@ def test_predict_help_alias():
     r = run_cmd(["-h"])
     assert r.returncode == 0
     assert "--output_dir" in r.stdout
+
+
+def test_fetch_models_help():
+    r = run_cmd(["fetch_models", "-h"])
+    assert r.returncode == 0
+    assert "Download model weights" in r.stdout
+    assert "--force" in r.stdout

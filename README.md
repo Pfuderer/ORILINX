@@ -13,15 +13,10 @@ For development or to use the latest unreleased version:
 git clone --recursive https://github.com/Pfuderer/ORILINX.git
 cd ORILINX
 pip install -e .
+orilinx fetch_models
 ```
 
-This installs ORILINX in editable mode and creates a console script named `orilinx` that runs prediction.
-
-**Note on PyTorch:** Install `torch` according to your platform and GPU:
-- For CUDA 12: Follow the recommended install from the [PyTorch website](https://pytorch.org/get-started/locally/)
-- For other GPUs or CPU-only: Adjust the PyTorch installation command accordingly
-
-All other dependencies (including `peft`) are installed automatically via `pip install -e .`
+This installs ORILINX in editable mode and creates a console script named `orilinx` that runs prediction. The `fetch_models` command downloads the required model weights from Hugging Face (~900 MB total) and only needs to be run once.
 
 ### Usage
 
@@ -48,18 +43,20 @@ orilinx --fasta_path genome.fa --output_dir results --output_csv
 
 ### Additional Options
 
-- `--sequence_names SEQUENCES` (default: all): Which chromosomes or regions to analyse. Use comma-separated names (e.g., `chr1,chr2`) or specify regions (e.g., `chr1:2000-6000`).
+- `--sequence_names SEQUENCES` (default: all): Which chromosomes or regions to analyse. Use comma-separated names (e.g., `chr1,chr2`) or a comma-separated list of regions (e.g., `chr1:2000-6000`).
 - `--output_csv`: Generate CSV files in addition to bedGraph files.
+- `--stride INT` (default: 1000): Stride in base pairs (bp) between consecutive windows.
 - `--score {logit,prob}` (default: prob): Output score format (probability 0-1 or raw logit).
-- `--stride INT` (default: 1000): Sliding window stride in bp. Smaller values = more detail but slower.
-- `--batch_size INT` (default: 32): Regions per batch. Increase for faster analysis if memory allows; decrease if you hit CUDA out-of-memory.
+- `--batch_size INT` (default: 32): Number of windows per batch. Increase for faster analysis if memory allows; decrease if you hit CUDA out-of-memory.
 - `--num_workers INT` (default: 8): Background processes for data loading. Set to 0 if experiencing issues.
 - `--max_N_frac FLOAT` (default: 0.05): Skip regions with >5% unknown bases ("N"). Adjust tolerance as needed.
 - `--disable_flash`: Use standard attention instead of flash attention (slower but compatible with more GPUs).
-- `--verbose`: Show detailed runtime information (model path, device, settings).
-- `--no-progress`: Hide progress bars (useful for scripts/logging).
+- `--verbose`: Show detailed runtime information (prints model paths, device and runtime settings).
+- `--no-progress`: Hide progress bars.
+- `--doctor`: Check that required model weights are present, then exit.
 
-For a complete list of options, run: `orilinx --help`
+
+For a complete list of options, run: `orilinx --help`.
 
 ### Examples
 

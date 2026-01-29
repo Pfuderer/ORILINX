@@ -1,6 +1,9 @@
 import os
 import sys
 import argparse
+import urllib.request
+import hashlib
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -16,6 +19,13 @@ from .io import write_bedgraph_center, write_csv_windows
 from .utils import find_default_model_path
 
 
+# Model download URLs
+MODEL_URLS = {
+    "model_epoch_6.pt": "https://huggingface.co/MBoemo/ORILINX/resolve/main/model_epoch_6.pt",
+    "pytorch_model.bin": "https://huggingface.co/MBoemo/DNABERT-2-117M-Flash/resolve/main/pytorch_model.bin",
+}
+
+
 def _is_git_lfs_pointer_file(path: str) -> bool:
     """Return True if `path` looks like a Git LFS pointer file."""
     try:
@@ -25,6 +35,145 @@ def _is_git_lfs_pointer_file(path: str) -> bool:
         return head.startswith(b"version https://git-lfs.github.com/spec/v1")
     except Exception:
         return False
+
+
+def _find_models_dir() -> Path:
+    """Find the models/ directory relative to the package installation."""
+    # Start from the package directory and look for models/
+    pkg_dir = Path(__file__).resolve().parent
+    
+    # Check common locations
+    candidates = [
+        pkg_dir.parent / "models",  # ../models from orilinx/
+        pkg_dir / "models",         # orilinx/models/ (unlikely but check)
+    ]
+    
+    # Also walk up from cwd
+    cwd = Path.cwd()
+    for p in [cwd] + list(cwd.parents):
+        candidates.append(p / "models")
+    
+    for models_dir in candidates:
+        if models_dir.exists() and models_dir.is_dir():
+            return models_dir
+    
+    # Default to package parent's models dir (will be created)
+    return pkg_dir.parent / "models"
+
+
+def _download_with_progress(url: str, dest_path: Path, desc: str = None) -> None:
+    """Download a file with progress display."""
+    if desc is None:
+        desc = dest_path.name
+    
+    # Create parent directories if needed
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Use a temporary file during download
+    tmp_path = dest_path.with_suffix(dest_path.suffix + ".tmp")
+    
+    try:
+        with urllib.request.urlopen(url) as response:
+            total_size = response.headers.get('Content-Length')
+            if total_size:
+                total_size = int(total_size)
+            
+            print(f"Downloading {desc}...")
+            if total_size:
+                print(f"  Size: {total_size / (1024*1024):.1f} MB")
+            
+            downloaded = 0
+            block_size = 8192 * 16  # 128KB blocks
+            
+            with open(tmp_path, 'wb') as out_file:
+                while True:
+                    buffer = response.read(block_size)
+                    if not buffer:
+                        break
+                    out_file.write(buffer)
+                    downloaded += len(buffer)
+                    
+                    if total_size:
+                        percent = (downloaded / total_size) * 100
+                        mb_done = downloaded / (1024*1024)
+                        mb_total = total_size / (1024*1024)
+                        print(f"\r  Progress: {mb_done:.1f}/{mb_total:.1f} MB ({percent:.1f}%)", end="", flush=True)
+            
+            print()  # Newline after progress
+        
+        # Move temp file to final destination
+        tmp_path.rename(dest_path)
+        print(f"  Saved to: {dest_path}")
+        
+    except Exception as e:
+        # Clean up temp file on error
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise RuntimeError(f"Failed to download {url}: {e}") from e
+
+
+def _fetch_models(force: bool = False, verbose: bool = False) -> int:
+    """Download model weights from Hugging Face.
+    
+    Returns exit code: 0 on success, non-zero on failure.
+    """
+    models_dir = _find_models_dir()
+    dnabert_dir = models_dir / "DNABERT-2-117M-Flash"
+    
+    print(f"[orilinx] Models directory: {models_dir}")
+    
+    # Ensure directories exist
+    models_dir.mkdir(parents=True, exist_ok=True)
+    dnabert_dir.mkdir(parents=True, exist_ok=True)
+    
+    files_to_download = [
+        {
+            "name": "model_epoch_6.pt",
+            "url": MODEL_URLS["model_epoch_6.pt"],
+            "dest": models_dir / "model_epoch_6.pt",
+            "desc": "ORILINX fine-tuned model checkpoint",
+        },
+        {
+            "name": "pytorch_model.bin", 
+            "url": MODEL_URLS["pytorch_model.bin"],
+            "dest": dnabert_dir / "pytorch_model.bin",
+            "desc": "DNABERT-2 base model weights",
+        },
+    ]
+    
+    errors = []
+    
+    for file_info in files_to_download:
+        dest = file_info["dest"]
+        
+        # Check if file exists and is valid (not an LFS pointer)
+        if dest.exists() and not force:
+            if _is_git_lfs_pointer_file(str(dest)):
+                print(f"[orilinx] {file_info['name']}: exists but is a Git LFS pointer, will re-download")
+            else:
+                # Check file size to ensure it's a real file (not empty or tiny)
+                size = dest.stat().st_size
+                if size > 1000:  # Reasonable minimum size for a model file
+                    print(f"[orilinx] {file_info['name']}: already exists ({size / (1024*1024):.1f} MB), skipping (use --force to re-download)")
+                    continue
+                else:
+                    print(f"[orilinx] {file_info['name']}: exists but is too small ({size} bytes), will re-download")
+        
+        try:
+            _download_with_progress(file_info["url"], dest, file_info["desc"])
+        except Exception as e:
+            errors.append(f"{file_info['name']}: {e}")
+            print(f"[orilinx] ERROR downloading {file_info['name']}: {e}")
+    
+    if errors:
+        print("\n[orilinx] Some downloads failed:")
+        for err in errors:
+            print(f"  - {err}")
+        return 1
+    
+    print("\n[orilinx] All model files downloaded successfully!")
+    print("[orilinx] You can now run 'orilinx --fasta_path <fasta> --output_dir <dir>' to make predictions.")
+    return 0
 
 
 def _doctor() -> int:
@@ -95,7 +244,8 @@ def _doctor() -> int:
 
     _note(
         "\n[orilinx] Fix suggestions:\n"
-        "- If you cloned from Git, install Git LFS and fetch large files: `git lfs install` then `git lfs pull`\n"
+        "- Run 'orilinx fetch_models' to download model weights from Hugging Face\n"
+        "- Alternatively, if you cloned from Git, install Git LFS and fetch large files: `git lfs install` then `git lfs pull`\n"
         "- Some HPCs set `GIT_LFS_SKIP_SMUDGE=1`; unset it and run `git lfs pull`\n"
         "- If outbound network access is restricted, copy weights from a machine that can fetch them, or set ORILINX_MODEL/ORILINX_DNABERT_PATH to shared locations"
     )
@@ -183,10 +333,36 @@ def _setup_tqdm(show_progress):
 
 
 def main(argv=None):
-    """Main prediction pipeline."""
+    """Main entry point for ORILINX CLI."""
     if argv is None:
         argv = sys.argv[1:]
 
+    # Check for subcommands first
+    if argv and argv[0] == "fetch_models":
+        # Handle fetch_models subcommand
+        fetch_parser = argparse.ArgumentParser(
+            prog="orilinx fetch_models",
+            description="Download model weights from Hugging Face."
+        )
+        fetch_parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Force re-download even if files already exist."
+        )
+        fetch_parser.add_argument(
+            "--verbose",
+            action="store_true", 
+            help="Enable verbose output."
+        )
+        fetch_args = fetch_parser.parse_args(argv[1:])
+        raise SystemExit(_fetch_models(force=fetch_args.force, verbose=fetch_args.verbose))
+
+    # Otherwise, run the prediction pipeline
+    _run_predict(argv)
+
+
+def _run_predict(argv):
+    """Main prediction pipeline."""
     p = argparse.ArgumentParser(description="Genome-wide origin scores with ORILINX.")
     p.add_argument(
         "--fasta_path",
@@ -259,7 +435,7 @@ def main(argv=None):
     p.add_argument(
         "--doctor",
         action="store_true",
-        help="Check that required model files are present (and not Git LFS pointer files), then exit."
+        help="Check that required model weights are present then exit."
     )
     args = p.parse_args(argv)
 

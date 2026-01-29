@@ -102,18 +102,16 @@ For large-scale analyses, you can tune the batch size and number of workers:
 
 .. code-block:: console
 
-   # High-throughput mode (increase batch size and workers)
+   # High-throughput (increase batch size and workers)
    orilinx --fasta_path chm13v2.0.fa \
            --output_dir fast_results \
-           --batch_size 128 \
+           --batch_size 64 \
            --num_workers 16 \
-           --stride 1000
 
-   # Memory-constrained mode (smaller batch size, fewer workers)
+   # Memory-constrained (smaller batch size, fewer workers)
    orilinx --fasta_path chm13v2.0.fa \
            --output_dir conservative_results \
            --batch_size 32 \
            --num_workers 4 \
-           --stride 1000
 
 Increasing batch size and workers will speed up computation if your hardware supports it. Conversely, reduce these values if you encounter out-of-memory errors.

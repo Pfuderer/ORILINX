@@ -7,14 +7,15 @@ Installation and Usage
 
 ORILINX requires:
 
-- Python 3.8 or newer installed
+- Python 3.9 or newer installed
 - A reference genome in FASTA format (e.g., hg38, hg19)
-- (Optional, but highly recommended) A GPU for faster performance
 
-GPU Setup (Optional, but highly recommended)
+Note that ORILINX was designed to run on GPUs. While it can run on CPUs, doing so is strongly discouraged.
+
+GPU Setup
 -------------------------------------
 
-ORILINX runs significantly faster on GPUs. If you have an NVIDIA GPU and want to use it, follow these steps.
+If you have an NVIDIA GPU, follow these steps.
 
 **Check if You Have an NVIDIA GPU**
 
@@ -127,7 +128,21 @@ This installs ORILINX from the current directory. The ``-e`` flag means it will 
 
 If you get a "command not found" error for ``pip``, you may need to use ``pip3`` instead.
 
-**Step 2: Prepare Your Data**
+**Step 2: Download Model Weights**
+
+After installation, download the required model weights::
+
+    orilinx fetch_models
+
+This downloads ~900 MB of model weights from Hugging Face. 
+
+**Note for HPC users:** This is especially useful on HPC systems where Git LFS may not be available or configured correctly. It provides an alternative to ``git lfs pull`` for obtaining the model weights.
+
+If you want to re-download the model weights (e.g., after a corrupted download), use::
+
+    orilinx fetch_models --force
+
+**Step 3: Prepare Your Data**
 
 ORILINX only needs one input: a genome file in FASTA format. Standard genomes like hg38 can be downloaded from NCBI or Ensembl.
 
@@ -137,7 +152,7 @@ The genome must be indexed so ORILINX can find sequences quickly. If your FASTA 
 
 If you don't have samtools installed, you can install it with: ``conda install -c bioconda samtools``
 
-**Step 3: Run ORILINX**
+**Step 4: Run ORILINX**
 
 Here's the simplest command::
 
@@ -213,11 +228,13 @@ These options help ORILINX run faster or work around computer limitations.
 
 - ``--disable_flash`` : Use this flag if ORILINX crashes with errors mentioning "Triton", "flash attention", or "GPU memory". It forces ORILINX to use standard PyTorch attention which is slower but more stable and compatible with a wider range of GPUs.
 
-**Information and Progress**
+**Progress and Diagnostics**
 
 - ``--verbose`` : Show extra information while running (which model files are being used, what device is being used, runtime settings, etc.). Use this if you want to verify that ORILINX is using the correct configuration and GPU, or for troubleshooting and bug reports.
 
 - ``--no-progress`` : Hide the animated progress bars. Use this if you're running ORILINX on a remote server, in a cluster job, or in a script where progress bars don't display correctly or cause output issues.
+
+- ``--doctor`` : Check that required model files are present and correctly downloaded, then exit without running any analysis. Use this to verify your installation is complete before running predictions. If problems are detected, ORILINX will print suggestions for how to fix them.
 
 Specifying model paths
 ----------------------

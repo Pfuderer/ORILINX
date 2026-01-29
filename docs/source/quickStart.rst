@@ -14,6 +14,7 @@ Install via pip::
     git clone --recursive https://github.com/Pfuderer/ORILINX.git
     cd ORILINX
     pip install -e .
+    orilinx fetch_models
 
 ORILINX includes a pre-trained model and everything you need.
 
