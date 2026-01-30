@@ -27,7 +27,7 @@ Publications
 
 If you use ORILINX for your research, please cite our publication:
 
-Pfuderer PL, Berkemeier F, Nassar J, Crisp A, Jaworski JJ, Moore J, Sale JE, Boemo MA. A genome language model for mapping DNA replication origins. bioRxiv 2026. [DOI]
+Pfuderer PL, Berkemeier F, Nassar J, Crisp A, Jaworski JJ, Moore J, Sale JE, Boemo MA. A genome language model for mapping DNA replication origins. bioRxiv 2026. [`Read on bioRxiv <https://doi.org/10.64898/2026.01.29.702604>`_]
 
 Bugs, Questions, and Comments
 -----------------------------

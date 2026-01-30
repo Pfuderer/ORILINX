@@ -81,7 +81,7 @@ orilinx --fasta_path hg38.fa --output_dir results --verbose --no-progress
 Please see the [documentation](https://orilinx.readthedocs.io) for detailed usage instructions, visualisation, and an example workflow.
 
 ### Citation
-Pfuderer PL, Berkemeier F, Nassar J, Crisp A, Jaworski JJ, Moore J, Sale JE, Boemo MA. A genome language model for mapping DNA replication origins. bioRxiv 2026. [DOI]
+Pfuderer PL, Berkemeier F, Nassar J, Crisp A, Jaworski JJ, Moore J, Sale JE, Boemo MA. A genome language model for mapping DNA replication origins. bioRxiv 2026. [[Read on bioRxiv](https://doi.org/10.64898/2026.01.29.702604)]
 
 ### Questions and Bugs
 It is under active development by the [Boemo Group](https://www.boemogroup.org/) based in the [Department of Pathology, University of Cambridge](https://www.path.cam.ac.uk/).
