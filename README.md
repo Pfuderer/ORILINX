@@ -35,6 +35,7 @@ orilinx --fasta_path genome.fa --output_dir results --sequence_names chr8:100000
 # Also generate CSV output alongside bedGraph
 orilinx --fasta_path genome.fa --output_dir results --output_csv
 ```
+When predicting replication origins across whole chromosomes or genomes, we recommend using a more stringent threshold for positive calls of >0.9 in the output CSV or bedGraph.
 
 ### Required Arguments
 
